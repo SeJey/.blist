@@ -20,8 +20,8 @@ function getImageBaseUrl(movie, isMovie) {
 export function renderMovieCard(movie, options = {}) {
     const isMovie = isMovieRecord(movie);
     const imageBaseUrl = getImageBaseUrl(movie, isMovie);
-
     let posterPath;
+
     if (movie.poster_path) {
         const posterValue = String(movie.poster_path);
         if (posterValue.startsWith('http')) {
@@ -37,14 +37,48 @@ export function renderMovieCard(movie, options = {}) {
     const year = movie.release_date ? movie.release_date.split('-')[0] : (movie.first_air_date ? movie.first_air_date.split('-')[0] : 'N/A');
     const dbId = movie.dbId || (isMovie ? `tmdb_${movie.id}` : `tmdb_tv_${movie.id}`);
     const typeLabel = isMovie ? 'movie' : 'series';
+
     const tmdbRating = (typeof movie.tmdbRating === 'number' && movie.tmdbRating > 0) ? movie.tmdbRating : null;
     const tvdbRating = (typeof movie.tvdbRating === 'number' && movie.tvdbRating > 0) ? movie.tvdbRating : null;
 
     let progressHtml = '';
-    if (!isMovie && movie.currentSeason && movie.episodesWatched) {
-        const currentEps = typeof movie.episodesWatched === 'object' ? (movie.episodesWatched[`s${movie.currentSeason}`] || 0) : 0;
-        if (currentEps > 0) {
-            progressHtml = ` <span class="mx-1">•</span> S${movie.currentSeason} • ${currentEps} eps`;
+    let progressBarOverlayHtml = '';
+
+    if (!isMovie) {
+        let totalEps = 0;
+        let watchedEps = 0;
+        const apiTotalEps = movie.number_of_episodes || movie.numberOfEpisodes || movie.totalEpisodes;
+        
+        if (apiTotalEps) {
+            if (typeof apiTotalEps === 'object') {
+                totalEps = Object.values(apiTotalEps).reduce((a, b) => a + b, 0);
+            } else {
+                totalEps = Number(apiTotalEps) || 0;
+            }
+        }
+        
+        if (movie.episodesWatched) {
+            if (typeof movie.episodesWatched === 'object') {
+                watchedEps = Object.values(movie.episodesWatched).reduce((a, b) => a + b, 0);
+            } else {
+                watchedEps = Number(movie.episodesWatched) || 0;
+            }
+        }
+        
+        if (watchedEps > 0 && totalEps > 0) {
+            const percentage = Math.min(100, Math.round((watchedEps / totalEps) * 100));
+            progressBarOverlayHtml = `
+                <div class="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-900/80 overflow-hidden z-10">
+                    <div class="h-full bg-sky-500" style="width: ${percentage}%"></div>
+                </div>
+            `;
+        }
+        
+        if (movie.currentSeason && movie.episodesWatched) {
+            const currentEps = typeof movie.episodesWatched === 'object' ? (movie.episodesWatched[`s${movie.currentSeason}`] || 0) : 0;
+            if (currentEps > 0) {
+                progressHtml = ` <span class="mx-1">•</span> S${movie.currentSeason} • ${currentEps} eps`;
+            }
         }
     }
 
@@ -55,8 +89,9 @@ export function renderMovieCard(movie, options = {}) {
 
     return `
         <article class="movie-card media-card media-card--${escapeAttribute(options.variant || 'grid')}" tabindex="0" role="button" aria-label="View ${escapeAttribute(title)} details" data-movie-id="${escapeAttribute(dbId)}" data-media-type="${escapeAttribute(typeLabel)}">
-            <div class="media-poster">
+            <div class="media-poster relative">
                 <img src="${escapeAttribute(posterPath)}" alt="${escapeAttribute(title)} poster" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/500x750/14181d/9298a1?text=No+poster'">
+                ${progressBarOverlayHtml}
                 <div class="media-card-overlay">
                     <button type="button" class="movie-watchlist-btn media-quick-action" aria-label="Add ${escapeAttribute(title)} to watchlist" data-movie-id="${escapeAttribute(dbId)}">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
@@ -71,11 +106,9 @@ export function renderMovieCard(movie, options = {}) {
         </article>
     `;
 }
-
 export function renderMovieListItem(movie, userMovieData = {}) {
     const isMovie = isMovieRecord(movie);
     const imageBaseUrl = getImageBaseUrl(movie, isMovie);
-
     let posterPath;
     if (movie.poster_path) {
         const posterValue = String(movie.poster_path);
@@ -87,39 +120,51 @@ export function renderMovieListItem(movie, userMovieData = {}) {
     } else {
         posterPath = 'https://placehold.co/100x150/1f2937/4b5563?text=No+Image';
     }
-
     const title = movie.title || movie.name || 'Untitled';
     const dbId = movie.dbId || (isMovie ? `tmdb_${movie.id}` : `tmdb_tv_${movie.id}`);
     const typeLabel = isMovie ? 'MOVIE' : 'SERIES';
     const userRating = formatStoredRating(userMovieData.rating, settings);
-
     let progressHtml = '';
     let progressDisplay = '';
-    if (!isMovie && movie.totalEpisodes && userMovieData.episodesWatched) {
+    let progressBarOverlayHtml = '';
+    if (!isMovie) {
         let totalEps = 0;
         let watchedEps = 0;
-
-        if (typeof movie.totalEpisodes === 'object') {
-            totalEps = Object.values(movie.totalEpisodes).reduce((a, b) => a + b, 0);
-        } else {
-            totalEps = movie.totalEpisodes;
+        const apiTotalEps = movie.number_of_episodes || movie.numberOfEpisodes || movie.totalEpisodes;
+        if (apiTotalEps) {
+            if (typeof apiTotalEps === 'object') {
+                totalEps = Object.values(apiTotalEps).reduce((a, b) => a + b, 0);
+            } else {
+                totalEps = Number(apiTotalEps) || 0;
+            }
         }
-
-        if (typeof userMovieData.episodesWatched === 'object') {
-            watchedEps = Object.values(userMovieData.episodesWatched).reduce((a, b) => a + b, 0);
-        } else {
-            watchedEps = userMovieData.episodesWatched;
+        if (userMovieData.episodesWatched) {
+            if (typeof userMovieData.episodesWatched === 'object') {
+                watchedEps = Object.values(userMovieData.episodesWatched).reduce((a, b) => a + b, 0);
+            } else {
+                watchedEps = Number(userMovieData.episodesWatched) || 0;
+            }
         }
-
-        if (watchedEps > 0) {
+        if (watchedEps > 0 && totalEps > 0) {
             progressDisplay = `${watchedEps}/${totalEps}`;
+            progressHtml = `<span class="text-gray-400">${progressDisplay}</span>`;
+            const percentage = Math.min(100, Math.round((watchedEps / totalEps) * 100));
+            progressBarOverlayHtml = `
+                <div class="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-900/80 rounded-b-md overflow-hidden z-10">
+                    <div class="h-full bg-sky-500" style="width: ${percentage}%"></div>
+                </div>
+            `;
+        } else if (watchedEps > 0) {
+            progressDisplay = `${watchedEps} eps`;
             progressHtml = `<span class="text-gray-400">${progressDisplay}</span>`;
         }
     }
-
     return `
         <div class="movie-list-item group flex items-center gap-4 p-3 rounded-lg hover:bg-gray-800 transition-colors border-b border-gray-700 last:border-b-0" data-movie-id="${escapeAttribute(dbId)}">
-            <img src="${escapeAttribute(posterPath)}" alt="${escapeAttribute(title)}" class="movie-list-poster w-16 h-24 object-cover rounded-md flex-shrink-0 cursor-pointer" data-movie-id="${escapeAttribute(dbId)}">
+            <div class="relative w-16 h-24 flex-shrink-0 cursor-pointer movie-list-poster-container" data-movie-id="${escapeAttribute(dbId)}">
+                <img src="${escapeAttribute(posterPath)}" alt="${escapeAttribute(title)}" class="movie-list-poster w-full h-full object-cover rounded-md" data-movie-id="${escapeAttribute(dbId)}">
+                ${progressBarOverlayHtml}
+            </div>
             <div class="flex-grow min-w-0">
                 <a href="#" class="movie-list-title block text-sm font-semibold text-white hover:text-sky-300 transition-colors truncate" data-movie-id="${escapeAttribute(dbId)}">${escapeHtml(title)}</a>
                 <p class="text-xs text-gray-400">${escapeHtml(typeLabel)}</p>

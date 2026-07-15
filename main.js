@@ -1,3 +1,5 @@
+import { runFirebaseDiagnostics } from "./firebase-diagnostics.js";
+runFirebaseDiagnostics();
 import './config.js';
 import { loadSettings, saveSettings, applyTheme, settings } from './settings.js';
 import { setupAuthStateListener } from './auth.js';
