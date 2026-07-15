@@ -1,0 +1,17 @@
+{
+  "name": "blist",
+  "version": "1.0.0",
+  "description": "blist - Your Movie Universe",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "echo 'No build step required'",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.11.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  }
+}
